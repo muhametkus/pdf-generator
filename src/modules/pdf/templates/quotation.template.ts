@@ -1,7 +1,7 @@
 import { PdfGenerationJobPayload } from '../../../common/interfaces/job-payload.interface';
 import { formatCurrency } from '../../../common/utils/currency.util';
 import { formatDate } from '../../../common/utils/date.util';
-import { COMPANY_LOGO_MONO_BASE64 } from './assets/logo-mono.base64';
+import { COMPANY_LOGO_BASE64 } from './assets/logo.base64';
 
 export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
   const quotationDateFormatted = formatDate(data.quotationDate);
@@ -19,7 +19,6 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
   const customerPhone = data.customer?.phone || '';
   const customerEmail = data.customer?.email || '';
   const customerAddress = data.customer?.address || '';
-  const customerId = data.customer?.id || data.customerId;
 
   // Determine VAT status
   const isVatExcluded =
@@ -27,55 +26,77 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     (typeof data.vatStatusText === 'string' &&
       data.vatStatusText.toLowerCase().includes('dahil değildir'));
 
-  // Delivery condition summary (prioritize root field if provided)
-  let deliveryCondition = data.deliveryStatusText || '';
-  if (!deliveryCondition) {
-    const hasDelivery = data.items.some((i) => i.requiresDelivery);
-    const allDelivery = data.items.length > 0 && data.items.every((i) => i.requiresDelivery);
-    if (allDelivery) {
-      deliveryCondition = 'Teslimat Dahildir.';
-    } else if (hasDelivery) {
-      deliveryCondition = 'Belirtilen ürünler için Teslimat Dahildir, diğerlerinde hariçtir.';
+  const vatConditionText = isVatExcluded ? 'KDV hariçtir.' : 'KDV dahildir.';
+
+  // Assembly and Delivery flags
+  const isAssembly =
+    data.isAssemblyIncluded !== undefined
+      ? data.isAssemblyIncluded
+      : data.items.length > 0 && data.items.every((i) => i.requiresInstallation);
+
+  const isDelivery =
+    data.isDeliveryIncluded !== undefined
+      ? data.isDeliveryIncluded
+      : data.items.length > 0 && data.items.every((i) => i.requiresDelivery);
+
+  const deliveryTime =
+    data.deliveryTimeText ||
+    (data.deliveryDays ? `${data.deliveryDays} Gün` : null) ||
+    (data.expectedDeliveryDate ? formatDate(data.expectedDeliveryDate) : null);
+
+  const conditionsListHtml: string[] = [];
+  conditionsListHtml.push(
+    `<li>İşbu teklif <strong>${validUntilFormatted}</strong> tarihine kadar geçerlidir.</li>`,
+  );
+  conditionsListHtml.push(`<li><strong>KDV Durumu:</strong> ${vatConditionText}</li>`);
+
+  if (isAssembly) {
+    conditionsListHtml.push(
+      `<li><strong>Montaj Durumu:</strong> Montaj ve Teslimat hizmeti dahildir.</li>`,
+    );
+  } else {
+    conditionsListHtml.push(
+      `<li><strong>Montaj Durumu:</strong> Montaj hizmeti hariçtir.</li>`,
+    );
+    if (isDelivery) {
+      conditionsListHtml.push(
+        `<li><strong>Teslimat Durumu:</strong> Teslimat hizmeti dahildir.</li>`,
+      );
     } else {
-      deliveryCondition = 'Teslimat Dahil Değildir (Nakliye alıcıya aittir).';
+      conditionsListHtml.push(
+        `<li><strong>Teslimat Durumu:</strong> Teslimat hizmeti hariçtir. Mağazadan teslim alınacaktır.</li>`,
+      );
     }
   }
 
-  // Append delivery time details if present
-  if (data.deliveryTimeText) {
-    deliveryCondition += ` (${data.deliveryTimeText})`;
-  } else if (data.deliveryDays) {
-    deliveryCondition += ` (${data.deliveryDays} iş günü)`;
+  if (deliveryTime) {
+    conditionsListHtml.push(
+      `<li><strong>Anlaşılan Teslim Süresi:</strong> ${escapeHtml(deliveryTime)} (Mücbir sebepler ve operasyonel aksaklıklar sebebiyle doğabilecek istisnai gecikmeler saklıdır.)</li>`,
+    );
   }
 
-  // Installation condition summary (prioritize root field if provided)
-  let installationCondition = data.assemblyStatusText || '';
-  if (!installationCondition) {
-    const hasInstallation = data.items.some((i) => i.requiresInstallation);
-    const allInstallation = data.items.length > 0 && data.items.every((i) => i.requiresInstallation);
-    if (allInstallation) {
-      installationCondition = 'Montaj Dahildir.';
-    } else if (hasInstallation) {
-      installationCondition = 'Belirtilen ürünler için Montaj Dahildir, diğerlerinde hariçtir.';
-    } else {
-      installationCondition = 'Montaj Dahil Değildir.';
-    }
-  }
-
-  const vatConditionText = isVatExcluded
-    ? 'Fiyatlarımıza KDV dahil değildir (Teklif koşulları KDV hariç olarak anlaşılmıştır).'
-    : 'Fiyatlarımıza KDV dahildir.';
+  conditionsListHtml.push(
+    `<li>Teklifin onaylanması durumunda ödeme yapıldığında sipariş kesinlik kazanır.</li>`,
+  );
 
   const itemsHtml = data.items
     .map((item, index) => {
       const unitPriceFormatted = formatCurrency(item.unitPrice);
       const totalPriceFormatted = formatCurrency(item.totalPrice);
 
-      const deliveryText = item.requiresDelivery
+      const itemDelivery =
+        data.isDeliveryIncluded !== undefined
+          ? data.isDeliveryIncluded
+          : item.requiresDelivery;
+      const deliveryText = itemDelivery
         ? 'Teslimat Dahildir.'
         : 'Teslimat Dahil Değildir.';
 
-      const installationText = item.requiresInstallation
+      const itemAssembly =
+        data.isAssemblyIncluded !== undefined
+          ? data.isAssemblyIncluded
+          : item.requiresInstallation;
+      const installationText = itemAssembly
         ? 'Montaj Dahildir.'
         : 'Montaj Dahil Değildir.';
 
@@ -405,7 +426,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
 <body>
   <div class="header">
     <div class="logo-container">
-      <img src="${COMPANY_LOGO_MONO_BASE64}" alt="Hebiloğlu Ahşap" class="logo-img" />
+      <img src="${COMPANY_LOGO_BASE64}" alt="Hebiloğlu Ahşap" class="logo-img" />
     </div>
     <div class="header-doc-info">
       <div class="doc-main-title">TEKLİF</div>
@@ -460,17 +481,9 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
       `
           : ''
       }
-      <div class="info-row">
-        <span class="info-label">Müşteri No:</span>
-        <span class="info-value text-muted">${escapeHtml(customerId)}</span>
-      </div>
     </div>
     <div class="info-card">
       <h4>Teklif Bilgileri</h4>
-      <div class="info-row">
-        <span class="info-label">Teklif No:</span>
-        <span class="info-value font-bold">${escapeHtml(data.quotationNumber)}</span>
-      </div>
       <div class="info-row">
         <span class="info-label">Teklif Tarihi:</span>
         <span class="info-value">${quotationDateFormatted}</span>
@@ -486,7 +499,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     data.notes
       ? `
     <div class="notes-box">
-      <div class="notes-title">Teklif Notları:</div>
+      <div class="notes-title">Teklif Notları / Ek Şartlar:</div>
       <div>${escapeHtml(data.notes)}</div>
     </div>
   `
@@ -512,11 +525,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     <div class="terms-card">
       <h5>Teklif Koşulları</h5>
       <ol>
-        <li>İşbu teklif <strong>${validUntilFormatted}</strong> tarihine kadar geçerlidir.</li>
-        <li><strong>KDV Durumu:</strong> ${vatConditionText}</li>
-        <li><strong>Teslimat Durumu:</strong> ${deliveryCondition}</li>
-        <li><strong>Montaj Durumu:</strong> ${installationCondition}</li>
-        <li>Teklifin onaylanması durumunda kaşeli ve imzalı nüshanın iletilmesi ile sipariş kesinlik kazanır.</li>
+        ${conditionsListHtml.join('\n        ')}
       </ol>
     </div>
 
@@ -525,11 +534,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
         <span>Toplam Tutar:</span>
         <span class="total-amount">${totalAmountFormatted}</span>
       </div>
-      ${
-        data.vatStatusText
-          ? `<div class="vat-status-note">${escapeHtml(data.vatStatusText)}</div>`
-          : ''
-      }
+      <div class="vat-status-note">${isVatExcluded ? 'KDV hariçtir.' : 'KDV dahildir.'}</div>
     </div>
   </div>
 
