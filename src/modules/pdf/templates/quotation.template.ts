@@ -1,44 +1,109 @@
 import { PdfGenerationJobPayload } from '../../../common/interfaces/job-payload.interface';
 import { formatCurrency } from '../../../common/utils/currency.util';
 import { formatDate } from '../../../common/utils/date.util';
+import { COMPANY_LOGO_MONO_BASE64 } from './assets/logo-mono.base64';
 
 export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
   const quotationDateFormatted = formatDate(data.quotationDate);
   const validUntilFormatted = formatDate(data.validUntil);
   const totalAmountFormatted = formatCurrency(data.totalAmount);
 
+  // Customer details
+  const customerName =
+    data.customerName ||
+    (data.customer
+      ? `${data.customer.firstName || ''} ${data.customer.lastName || ''}`.trim()
+      : '') ||
+    '-';
+  const customerCompany = data.customer?.companyName || '';
+  const customerPhone = data.customer?.phone || '';
+  const customerEmail = data.customer?.email || '';
+  const customerAddress = data.customer?.address || '';
+  const customerId = data.customer?.id || data.customerId;
+
+  // Determine VAT status
+  const isVatExcluded =
+    data.isVatIncluded === false ||
+    (typeof data.vatStatusText === 'string' &&
+      data.vatStatusText.toLowerCase().includes('dahil değildir'));
+
+  // Delivery condition summary (prioritize root field if provided)
+  let deliveryCondition = data.deliveryStatusText || '';
+  if (!deliveryCondition) {
+    const hasDelivery = data.items.some((i) => i.requiresDelivery);
+    const allDelivery = data.items.length > 0 && data.items.every((i) => i.requiresDelivery);
+    if (allDelivery) {
+      deliveryCondition = 'Teslimat Dahildir.';
+    } else if (hasDelivery) {
+      deliveryCondition = 'Belirtilen ürünler için Teslimat Dahildir, diğerlerinde hariçtir.';
+    } else {
+      deliveryCondition = 'Teslimat Dahil Değildir (Nakliye alıcıya aittir).';
+    }
+  }
+
+  // Append delivery time details if present
+  if (data.deliveryTimeText) {
+    deliveryCondition += ` (${data.deliveryTimeText})`;
+  } else if (data.deliveryDays) {
+    deliveryCondition += ` (${data.deliveryDays} iş günü)`;
+  }
+
+  // Installation condition summary (prioritize root field if provided)
+  let installationCondition = data.assemblyStatusText || '';
+  if (!installationCondition) {
+    const hasInstallation = data.items.some((i) => i.requiresInstallation);
+    const allInstallation = data.items.length > 0 && data.items.every((i) => i.requiresInstallation);
+    if (allInstallation) {
+      installationCondition = 'Montaj Dahildir.';
+    } else if (hasInstallation) {
+      installationCondition = 'Belirtilen ürünler için Montaj Dahildir, diğerlerinde hariçtir.';
+    } else {
+      installationCondition = 'Montaj Dahil Değildir.';
+    }
+  }
+
+  const vatConditionText = isVatExcluded
+    ? 'Fiyatlarımıza KDV dahil değildir (Teklif koşulları KDV hariç olarak anlaşılmıştır).'
+    : 'Fiyatlarımıza KDV dahildir.';
+
   const itemsHtml = data.items
     .map((item, index) => {
       const unitPriceFormatted = formatCurrency(item.unitPrice);
       const totalPriceFormatted = formatCurrency(item.totalPrice);
 
-      const productionBadge = item.requiresProduction
-        ? '<span class="badge badge-info">✓ Üretim</span>'
-        : '<span class="badge badge-muted">✗ Üretim</span>';
+      const deliveryText = item.requiresDelivery
+        ? 'Teslimat Dahildir.'
+        : 'Teslimat Dahil Değildir.';
 
-      const deliveryBadge = item.requiresDelivery
-        ? '<span class="badge badge-info">✓ Teslimat</span>'
-        : '<span class="badge badge-muted">✗ Teslimat</span>';
+      const installationText = item.requiresInstallation
+        ? 'Montaj Dahildir.'
+        : 'Montaj Dahil Değildir.';
 
-      const installationBadge = item.requiresInstallation
-        ? '<span class="badge badge-info">✓ Montaj</span>'
-        : '<span class="badge badge-muted">✗ Montaj</span>';
+      const productionText = item.requiresProduction
+        ? 'Üretim Dahildir.'
+        : 'Üretim Gerekli Değildir.';
+
+      const descriptionText =
+        item.description && item.description.trim().length > 0
+          ? `<div class="product-desc">${escapeHtml(item.description)}</div>`
+          : '';
 
       return `
         <tr>
-          <td class="text-center">${index + 1}</td>
+          <td class="text-center font-bold text-muted">${index + 1}</td>
           <td>
             <div class="product-name">${escapeHtml(item.productName)}</div>
-            <div class="product-desc">${escapeHtml(item.description || '-')}</div>
-            <div class="badge-group">
-              ${productionBadge}
-              ${deliveryBadge}
-              ${installationBadge}
+            ${descriptionText}
+            <div class="item-specs">
+              <span>${deliveryText}</span>
+              <span class="spec-dot">•</span>
+              <span>${installationText}</span>
+              ${item.requiresProduction ? `<span class="spec-dot">•</span><span>${productionText}</span>` : ''}
             </div>
           </td>
           <td class="text-center font-bold">${item.quantity}</td>
           <td class="text-right">${unitPriceFormatted}</td>
-          <td class="text-right font-bold">${totalPriceFormatted}</td>
+          <td class="text-right font-bold text-dark">${totalPriceFormatted}</td>
         </tr>
       `;
     })
@@ -51,8 +116,8 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
   <title>Teklif - ${escapeHtml(data.quotationNumber)}</title>
   <style>
     @page {
-      size: A4;
-      margin: 15mm;
+      size: A4 portrait;
+      margin: 12mm 15mm;
     }
     * {
       box-sizing: border-box;
@@ -63,198 +128,288 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      color: #1e293b;
+      color: #1f2937;
       background-color: #ffffff;
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 10px;
+      font-size: 11.5px;
+      line-height: 1.45;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid #0f172a;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
+      align-items: center;
+      border-bottom: 2px solid #1f2937;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
     }
-    .brand-title {
-      font-size: 26px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.5px;
-      text-transform: uppercase;
+    .logo-container {
+      display: flex;
+      align-items: center;
     }
-    .brand-subtitle {
-      font-size: 13px;
-      color: #64748b;
-      margin-top: 4px;
+    .logo-img {
+      max-width: 250px;
+      height: auto;
+      max-height: 65px;
+      object-fit: contain;
     }
-    .quotation-badge {
-      display: inline-block;
-      background-color: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 8px 14px;
+    .header-doc-info {
       text-align: right;
     }
-    .quotation-badge .number {
-      font-size: 15px;
-      font-weight: 700;
-      color: #0f172a;
+    .doc-main-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #111827;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      margin-bottom: 4px;
     }
-    .quotation-badge .status {
+    .doc-ref-number {
       font-size: 12px;
       font-weight: 600;
-      color: #2563eb;
-      margin-top: 2px;
+      color: #4b5563;
     }
+
     .info-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 25px;
-      background-color: #f8fafc;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .info-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 10px 14px;
     }
     .info-card h4 {
       font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #64748b;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #e2e8f0;
+      color: #111827;
+      border-bottom: 1px solid #e5e7eb;
       padding-bottom: 4px;
+      margin-bottom: 7px;
     }
     .info-row {
       display: flex;
-      margin-bottom: 6px;
+      margin-bottom: 4.5px;
+      font-size: 11px;
+    }
+    .info-row:last-child {
+      margin-bottom: 0;
     }
     .info-label {
-      width: 130px;
+      width: 115px;
       font-weight: 600;
-      color: #475569;
+      color: #6b7280;
+      flex-shrink: 0;
     }
     .info-value {
       flex: 1;
-      color: #0f172a;
+      color: #111827;
+      word-break: break-word;
     }
+
     .notes-box {
-      margin-bottom: 20px;
-      padding: 12px;
-      background-color: #fffbeb;
-      border-left: 4px solid #f59e0b;
-      border-radius: 4px;
-      font-size: 12px;
-      color: #92400e;
+      margin-bottom: 16px;
+      padding: 9px 12px;
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-left: 3px solid #374151;
+      border-radius: 3px;
+      font-size: 11px;
+      color: #1f2937;
     }
     .notes-title {
       font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+      color: #111827;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 25px;
+      margin-bottom: 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
     }
-    th {
-      background-color: #0f172a;
+    thead th {
+      background-color: #1f2937;
       color: #ffffff;
       font-weight: 600;
-      font-size: 12px;
+      font-size: 10.5px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 10px 12px;
-      text-align: left;
+      padding: 8px 10px;
+      border-right: 1px solid #374151;
     }
-    td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #e2e8f0;
+    thead th:last-child {
+      border-right: none;
+    }
+    tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      border-right: 1px solid #f3f4f6;
       vertical-align: top;
+      font-size: 11px;
     }
-    tr:nth-child(even) {
-      background-color: #f8fafc;
+    tbody td:last-child {
+      border-right: none;
     }
+    tbody tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
     .text-center { text-align: center; }
     .text-right { text-align: right; }
     .font-bold { font-weight: 700; }
+    .text-muted { color: #6b7280; }
+    .text-dark { color: #111827; }
+
     .product-name {
       font-weight: 700;
-      color: #0f172a;
-      font-size: 13px;
+      color: #111827;
+      font-size: 11.5px;
     }
     .product-desc {
-      color: #64748b;
-      font-size: 12px;
-      margin-top: 3px;
+      color: #4b5563;
+      font-size: 10.5px;
+      margin-top: 2px;
     }
-    .badge-group {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .badge {
-      display: inline-block;
+    .item-specs {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-    }
-    .badge-info {
-      background-color: #dbeafe;
-      color: #1e40af;
-      border: 1px solid #bfdbfe;
-    }
-    .badge-muted {
-      background-color: #f1f5f9;
-      color: #94a3b8;
-      border: 1px solid #e2e8f0;
-    }
-    .total-section {
+      color: #4b5563;
+      margin-top: 4px;
       display: flex;
-      justify-content: flex-end;
-      margin-top: 15px;
+      align-items: center;
+      gap: 5px;
     }
-    .total-box {
-      width: 320px;
-      background-color: #f8fafc;
-      border: 2px solid #0f172a;
-      border-radius: 8px;
-      padding: 16px;
+    .spec-dot {
+      color: #9ca3af;
+    }
+
+    .calculation-section {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    .terms-card {
+      flex: 1.2;
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 10.5px;
+      color: #374151;
+    }
+    .terms-card h5 {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 3px;
+    }
+    .terms-card ol {
+      padding-left: 15px;
+      line-height: 1.55;
+    }
+
+    .summary-card {
+      width: 290px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+      background-color: #ffffff;
+      align-self: flex-start;
+    }
+    .summary-row.total-row {
+      background-color: #1f2937;
+      color: #ffffff;
+      padding: 11px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .summary-row.total-row .total-amount {
+      font-size: 16px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .vat-status-note {
+      padding: 6px 12px;
+      font-size: 10px;
+      color: #4b5563;
+      background-color: #f9fafb;
+      border-top: 1px solid #e5e7eb;
       text-align: right;
     }
-    .total-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: #475569;
+
+    .signature-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+      page-break-inside: avoid;
+    }
+    .signature-box {
+      border: 1px dashed #d1d5db;
+      border-radius: 4px;
+      padding: 10px 12px;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background-color: #f9fafb;
+    }
+    .signature-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #111827;
       text-transform: uppercase;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 3px;
     }
-    .total-value {
-      font-size: 22px;
-      font-weight: 800;
-      color: #0f172a;
-      margin-top: 4px;
-    }
-    .footer {
-      margin-top: 40px;
-      border-top: 1px solid #e2e8f0;
-      padding-top: 12px;
+    .signature-placeholder {
       text-align: center;
-      font-size: 11px;
-      color: #94a3b8;
+      font-size: 10px;
+      color: #9ca3af;
+      font-style: italic;
+      margin-top: 22px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 7px;
+      text-align: center;
+      font-size: 9.5px;
+      color: #9ca3af;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="brand-title">TEKLİF / QUOTATION</div>
-      <div class="brand-subtitle">Resmi Fiyat ve Koşul Teklif Mektubu</div>
+    <div class="logo-container">
+      <img src="${COMPANY_LOGO_MONO_BASE64}" alt="Hebiloğlu Ahşap" class="logo-img" />
     </div>
-    <div class="quotation-badge">
-      <div class="number">${escapeHtml(data.quotationNumber)}</div>
-      <div class="status">Durum: ${escapeHtml(data.statusText)}</div>
+    <div class="header-doc-info">
+      <div class="doc-main-title">TEKLİF</div>
+      <div class="doc-ref-number">Teklif No: ${escapeHtml(data.quotationNumber)}</div>
     </div>
   </div>
 
@@ -263,15 +418,55 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
       <h4>Müşteri Bilgileri</h4>
       <div class="info-row">
         <span class="info-label">Müşteri Adı:</span>
-        <span class="info-value font-bold">${escapeHtml(data.customerName)}</span>
+        <span class="info-value font-bold">${escapeHtml(customerName)}</span>
       </div>
+      ${
+        customerCompany
+          ? `
+      <div class="info-row">
+        <span class="info-label">Firma / Ünvan:</span>
+        <span class="info-value font-bold">${escapeHtml(customerCompany)}</span>
+      </div>
+      `
+          : ''
+      }
+      ${
+        customerPhone
+          ? `
+      <div class="info-row">
+        <span class="info-label">Telefon:</span>
+        <span class="info-value">${escapeHtml(customerPhone)}</span>
+      </div>
+      `
+          : ''
+      }
+      ${
+        customerEmail
+          ? `
+      <div class="info-row">
+        <span class="info-label">E-Posta:</span>
+        <span class="info-value">${escapeHtml(customerEmail)}</span>
+      </div>
+      `
+          : ''
+      }
+      ${
+        customerAddress
+          ? `
+      <div class="info-row">
+        <span class="info-label">Adres:</span>
+        <span class="info-value">${escapeHtml(customerAddress)}</span>
+      </div>
+      `
+          : ''
+      }
       <div class="info-row">
         <span class="info-label">Müşteri No:</span>
-        <span class="info-value">${escapeHtml(data.customerId)}</span>
+        <span class="info-value text-muted">${escapeHtml(customerId)}</span>
       </div>
     </div>
     <div class="info-card">
-      <h4>Teklif Detayları</h4>
+      <h4>Teklif Bilgileri</h4>
       <div class="info-row">
         <span class="info-label">Teklif No:</span>
         <span class="info-value font-bold">${escapeHtml(data.quotationNumber)}</span>
@@ -282,7 +477,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
       </div>
       <div class="info-row">
         <span class="info-label">Geçerlilik Tarihi:</span>
-        <span class="info-value">${validUntilFormatted}</span>
+        <span class="info-value font-bold">${validUntilFormatted}</span>
       </div>
     </div>
   </div>
@@ -291,7 +486,7 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     data.notes
       ? `
     <div class="notes-box">
-      <div class="notes-title">Notlar:</div>
+      <div class="notes-title">Teklif Notları:</div>
       <div>${escapeHtml(data.notes)}</div>
     </div>
   `
@@ -301,11 +496,11 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
   <table>
     <thead>
       <tr>
-        <th style="width: 40px;" class="text-center">#</th>
+        <th style="width: 35px;" class="text-center">#</th>
         <th>Ürün ve Hizmet Açıklaması</th>
-        <th style="width: 70px;" class="text-center">Adet</th>
-        <th style="width: 130px;" class="text-right">Birim Fiyat</th>
-        <th style="width: 140px;" class="text-right">Toplam Fiyat</th>
+        <th style="width: 60px;" class="text-center">Adet</th>
+        <th style="width: 120px;" class="text-right">Birim Fiyat</th>
+        <th style="width: 130px;" class="text-right">Toplam Fiyat</th>
       </tr>
     </thead>
     <tbody>
@@ -313,21 +508,50 @@ export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
     </tbody>
   </table>
 
-  <div class="total-section">
-    <div class="total-box">
-      <div class="total-label">Toplam Tutar</div>
-      <div class="total-value">${totalAmountFormatted}</div>
+  <div class="calculation-section">
+    <div class="terms-card">
+      <h5>Teklif Koşulları</h5>
+      <ol>
+        <li>İşbu teklif <strong>${validUntilFormatted}</strong> tarihine kadar geçerlidir.</li>
+        <li><strong>KDV Durumu:</strong> ${vatConditionText}</li>
+        <li><strong>Teslimat Durumu:</strong> ${deliveryCondition}</li>
+        <li><strong>Montaj Durumu:</strong> ${installationCondition}</li>
+        <li>Teklifin onaylanması durumunda kaşeli ve imzalı nüshanın iletilmesi ile sipariş kesinlik kazanır.</li>
+      </ol>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-row total-row">
+        <span>Toplam Tutar:</span>
+        <span class="total-amount">${totalAmountFormatted}</span>
+      </div>
+      ${
+        data.vatStatusText
+          ? `<div class="vat-status-note">${escapeHtml(data.vatStatusText)}</div>`
+          : ''
+      }
+    </div>
+  </div>
+
+  <div class="signature-section">
+    <div class="signature-box">
+      <div class="signature-title">Teklifi Hazırlayan (Hebiloğlu Ahşap)</div>
+      <div class="signature-placeholder">Yetkili İmza / Kaşe</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-title">Teklifi Onaylayan (Müşteri)</div>
+      <div class="signature-placeholder">${escapeHtml(customerName)} / Kaşe - İmza</div>
     </div>
   </div>
 
   <div class="footer">
-    İşbu teklif belgesi sistem tarafından elektronik olarak üretilmiştir. Belirtilen geçerlilik tarihine kadar geçerlidir.
+    Hebiloğlu Ahşap Kapı-Kasa-Pervaz Sistemleri • İşbu teklif belgesi elektronik olarak üretilmiştir.
   </div>
 </body>
 </html>`;
 }
 
-function escapeHtml(text: string): string {
+function escapeHtml(text: string | null | undefined): string {
   if (!text) return '';
   return text
     .replace(/&/g, '&amp;')

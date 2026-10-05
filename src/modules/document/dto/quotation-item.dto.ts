@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   IsUUID,
@@ -58,9 +59,21 @@ export class QuotationItemDto {
   @ApiProperty({
     example: '6 adet lake iç kapı',
     description: 'Item description',
+    required: false,
+    nullable: true,
   })
   @IsString()
-  description: string;
+  @IsOptional()
+  description?: string | null;
+
+  @ApiProperty({
+    example: true,
+    description: 'Is VAT included in unit price',
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isVatIncluded?: boolean;
 
   @ApiProperty({
     example: true,

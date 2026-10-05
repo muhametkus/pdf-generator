@@ -5,10 +5,23 @@ export interface QuotationItemPayload {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  description: string;
+  description?: string | null;
+  isVatIncluded?: boolean;
   requiresProduction: boolean;
   requiresDelivery: boolean;
   requiresInstallation: boolean;
+}
+
+export interface CustomerPayload {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  companyName?: string;
+  address?: string;
+  notes?: string | null;
+  createdAt?: string;
 }
 
 export interface PdfGenerationJobPayload {
@@ -22,6 +35,16 @@ export interface PdfGenerationJobPayload {
   status: number;
   statusText: string;
   notes?: string;
+  isVatIncluded?: boolean;
+  vatStatusText?: string;
+  isAssemblyIncluded?: boolean;
+  assemblyStatusText?: string;
+  isDeliveryIncluded?: boolean;
+  deliveryStatusText?: string;
+  deliveryDays?: number | null;
+  expectedDeliveryDate?: string | null;
+  deliveryTimeText?: string | null;
+  customer?: CustomerPayload;
   quotationPdfUrl?: string | null;
   isConvertedToOrder: boolean;
   createdAt: string;

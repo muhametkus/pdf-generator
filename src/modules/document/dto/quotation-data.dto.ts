@@ -12,6 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { QuotationItemDto } from './quotation-item.dto';
+import { CustomerDto } from './customer.dto';
 
 export class QuotationDataDto {
   @ApiProperty({
@@ -91,6 +92,87 @@ export class QuotationDataDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Whether VAT is included in quotation prices',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isVatIncluded?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Fiyatlara KDV dahil değildir (+%20 KDV)',
+    description: 'VAT description text',
+  })
+  @IsString()
+  @IsOptional()
+  vatStatusText?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether assembly is included in quotation',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isAssemblyIncluded?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Montaj Dahildir',
+    description: 'Assembly status label',
+  })
+  @IsString()
+  @IsOptional()
+  assemblyStatusText?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether delivery is included in quotation',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isDeliveryIncluded?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Teslimat Dahildir',
+    description: 'Delivery status label',
+  })
+  @IsString()
+  @IsOptional()
+  deliveryStatusText?: string;
+
+  @ApiPropertyOptional({
+    example: null,
+    description: 'Delivery days count',
+  })
+  @IsNumber()
+  @IsOptional()
+  deliveryDays?: number | null;
+
+  @ApiPropertyOptional({
+    example: null,
+    description: 'Expected delivery date ISO timestamp',
+  })
+  @IsDateString()
+  @IsOptional()
+  expectedDeliveryDate?: string | null;
+
+  @ApiPropertyOptional({
+    example: null,
+    description: 'Delivery time explanation text',
+  })
+  @IsString()
+  @IsOptional()
+  deliveryTimeText?: string | null;
+
+  @ApiPropertyOptional({
+    type: () => CustomerDto,
+    description: 'Detailed customer information',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerDto)
+  customer?: CustomerDto;
 
   @ApiPropertyOptional({
     example: null,
