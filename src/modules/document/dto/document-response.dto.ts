@@ -1,21 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class DocumentQueuedResponseDto {
-  @ApiProperty({
-    example: true,
-    description: 'Indicates the document job was successfully queued',
-  })
+export class DocumentResponseDto {
+  @ApiProperty({ example: true })
   success: boolean;
 
-  @ApiProperty({
-    example: '142',
-    description: 'BullMQ Job identifier for tracking queue progress',
-  })
-  jobId: string;
+  @ApiProperty({ example: 'completed' })
+  status: 'completed';
 
   @ApiProperty({
-    example: 'queued',
-    description: 'Current status of the request',
+    example:
+      'https://pdf.example.com/uploads/276179ea-eb7d-449f-b659-66c28f931547.pdf',
   })
-  status: 'queued';
+  pdfUrl: string;
 }

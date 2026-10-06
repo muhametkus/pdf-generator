@@ -1,55 +1,38 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import {
-  DEFAULT_JOB_OPTIONS,
-  QUEUE_NAMES,
-} from '../../common/constants/queue.constants';
-import { PdfGenerationJobPayload } from '../../common/interfaces/job-payload.interface';
+import { BadGatewayException, Injectable } from '@nestjs/common';
+import { PdfService } from '../pdf/pdf.service';
+import { StorageService } from '../storage/storage.service';
+import { ExternalApiService } from '../external-api/external-api.service';
 import { QuotationDataDto } from './dto/quotation-data.dto';
-import { DocumentQueuedResponseDto } from './dto/document-response.dto';
+import { DocumentResponseDto } from './dto/document-response.dto';
 
 @Injectable()
 export class DocumentService {
-  private readonly logger = new Logger(DocumentService.name);
-
   constructor(
-    @InjectQueue(QUEUE_NAMES.PDF_GENERATION)
-    private readonly pdfQueue: Queue<PdfGenerationJobPayload>,
+    private readonly pdfService: PdfService,
+    private readonly storageService: StorageService,
+    private readonly externalApiService: ExternalApiService,
   ) {}
 
-  /**
-   * Enqueues a quotation for PDF generation and subsequent external API notification.
-   * Explicitly strips out statusHistory per business rules.
-   *
-   * @param data - The full quotation data object from the request
-   * @returns DocumentQueuedResponseDto with jobId and status
-   */
-  async queueQuotationDocument(
+  async generateQuotationDocument(
     data: QuotationDataDto,
-  ): Promise<DocumentQueuedResponseDto> {
-    // Exclude statusHistory from job payload
+  ): Promise<DocumentResponseDto> {
+    // statusHistory is excluded from PDF data per business requirements.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { statusHistory, ...jobPayload } = data;
-
-    this.logger.log(
-      `Queueing PDF generation for quotation: ${jobPayload.quotationNumber} (${jobPayload.id})`,
+    const { statusHistory, ...quotation } = data;
+    const buffer = await this.pdfService.generatePdf(quotation);
+    const pdfUrl = await this.storageService.savePdf(
+      `${quotation.id}.pdf`,
+      buffer,
     );
 
-    const job = await this.pdfQueue.add(
-      'generate-quotation-pdf',
-      jobPayload,
-      DEFAULT_JOB_OPTIONS,
-    );
+    try {
+      await this.externalApiService.updateQuotationPdfUrl(quotation.id, pdfUrl);
+    } catch {
+      throw new BadGatewayException(
+        'PDF created, but the external API could not be updated. Retry the request.',
+      );
+    }
 
-    this.logger.log(
-      `Job enqueued successfully with ID: ${job.id} on queue: ${QUEUE_NAMES.PDF_GENERATION}`,
-    );
-
-    return {
-      success: true,
-      jobId: String(job.id),
-      status: 'queued',
-    };
+    return { success: true, status: 'completed', pdfUrl };
   }
 }

@@ -1,8 +1,8 @@
 import { renderQuotationHtml } from './quotation.template';
-import { PdfGenerationJobPayload } from '../../../common/interfaces/job-payload.interface';
+import { QuotationPayload } from '../../../common/interfaces/quotation.interface';
 
 describe('renderQuotationHtml', () => {
-  const samplePayload: PdfGenerationJobPayload = {
+  const samplePayload: QuotationPayload = {
     id: '276179ea-eb7d-449f-b659-66c28f931547',
     quotationNumber: 'QUO-20260905204501387',
     customerId: '1c38a3c2-75fc-4aa4-a680-546c3e436636',
@@ -75,7 +75,7 @@ describe('renderQuotationHtml', () => {
   });
 
   it('should render corporate layout with monochrome logo, no status badge, and VAT/delivery terms', () => {
-    const userPayload: PdfGenerationJobPayload = {
+    const userPayload: QuotationPayload = {
       id: '43212f2c-ecc0-49b4-995c-66fcda293cc7',
       quotationNumber: 'QUO-20261004220432161',
       customerId: 'fed400b8-2ac0-49e7-a401-0d3180ae494d',
@@ -151,7 +151,7 @@ describe('renderQuotationHtml', () => {
   });
 
   it('should render detailed customer object fields (company, phone, email, address)', () => {
-    const payloadWithCustomer: PdfGenerationJobPayload = {
+    const payloadWithCustomer: QuotationPayload = {
       id: 'a21e8635-5a2c-4aa1-85b9-ccce617ba0bb',
       quotationNumber: 'QUO-20261005223359309',
       customerId: 'fed400b8-2ac0-49e7-a401-0d3180ae494d',

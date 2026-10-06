@@ -3,7 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ExternalApiService } from './external-api.service';
 
 @Module({
-  imports: [HttpModule],
+  imports: [HttpModule.register({ timeout: 30000 })],
   providers: [ExternalApiService],
   exports: [ExternalApiService],
 })

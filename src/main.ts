@@ -30,7 +30,7 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('PDF Generator Microservice')
     .setDescription(
-      'Asynchronous quotation PDF generation and external API notification microservice',
+      'Quotation PDF generation and external API update service',
     )
     .setVersion('1.0')
     .addTag('Documents')

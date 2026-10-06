@@ -1,19 +1,12 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
-import {
-  DEFAULT_JOB_OPTIONS,
-  QUEUE_NAMES,
-} from '../../common/constants/queue.constants';
+import { PdfModule } from '../pdf/pdf.module';
+import { StorageModule } from '../storage/storage.module';
+import { ExternalApiModule } from '../external-api/external-api.module';
 import { DocumentController } from './document.controller';
 import { DocumentService } from './document.service';
 
 @Module({
-  imports: [
-    BullModule.registerQueue({
-      name: QUEUE_NAMES.PDF_GENERATION,
-      defaultJobOptions: DEFAULT_JOB_OPTIONS,
-    }),
-  ],
+  imports: [PdfModule, StorageModule, ExternalApiModule],
   controllers: [DocumentController],
   providers: [DocumentService],
   exports: [DocumentService],

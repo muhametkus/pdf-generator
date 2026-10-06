@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
-import { PdfGenerationJobPayload } from '../../common/interfaces/job-payload.interface';
+import { QuotationPayload } from '../../common/interfaces/quotation.interface';
 import { renderQuotationHtml } from './templates/quotation.template';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class PdfService {
    * @param data - The quotation payload (without statusHistory)
    * @returns Buffer containing the rendered PDF binary
    */
-  async generatePdf(data: PdfGenerationJobPayload): Promise<Buffer> {
+  async generatePdf(data: QuotationPayload): Promise<Buffer> {
     this.logger.log(`Generating PDF for quotation: ${data.quotationNumber} (${data.id})`);
 
     const html = renderQuotationHtml(data);

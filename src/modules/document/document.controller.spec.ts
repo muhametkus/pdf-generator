@@ -14,7 +14,7 @@ describe('DocumentController', () => {
         {
           provide: DocumentService,
           useValue: {
-            queueQuotationDocument: jest.fn(),
+            generateQuotationDocument: jest.fn(),
           },
         },
       ],
@@ -24,7 +24,7 @@ describe('DocumentController', () => {
     service = module.get<DocumentService>(DocumentService);
   });
 
-  it('should call documentService.queueQuotationDocument and return queued response', async () => {
+  it('should call documentService.generateQuotationDocument and return completed response', async () => {
     const requestDto: CreateDocumentDto = {
       success: true,
       data: {
@@ -47,15 +47,15 @@ describe('DocumentController', () => {
 
     const mockResponse = {
       success: true as const,
-      jobId: '123',
-      status: 'queued' as const,
+      pdfUrl: 'https://pdf.example.com/uploads/test.pdf',
+      status: 'completed' as const,
     };
 
-    (service.queueQuotationDocument as jest.Mock).mockResolvedValue(mockResponse);
+    (service.generateQuotationDocument as jest.Mock).mockResolvedValue(mockResponse);
 
     const result = await controller.createDocument(requestDto);
 
-    expect(service.queueQuotationDocument).toHaveBeenCalledWith(requestDto.data);
+    expect(service.generateQuotationDocument).toHaveBeenCalledWith(requestDto.data);
     expect(result).toEqual(mockResponse);
   });
 });

@@ -1,9 +1,9 @@
-import { PdfGenerationJobPayload } from '../../../common/interfaces/job-payload.interface';
+import { QuotationPayload } from '../../../common/interfaces/quotation.interface';
 import { formatCurrency } from '../../../common/utils/currency.util';
 import { formatDate } from '../../../common/utils/date.util';
 import { COMPANY_LOGO_BASE64 } from './assets/logo.base64';
 
-export function renderQuotationHtml(data: PdfGenerationJobPayload): string {
+export function renderQuotationHtml(data: QuotationPayload): string {
   const quotationDateFormatted = formatDate(data.quotationDate);
   const validUntilFormatted = formatDate(data.validUntil);
   const totalAmountFormatted = formatCurrency(data.totalAmount);

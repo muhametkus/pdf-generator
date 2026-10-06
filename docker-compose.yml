@@ -10,9 +10,6 @@ services:
       NODE_ENV: production
       PORT: '3000'
       BASE_URL: ${BASE_URL:?}
-      REDIS_HOST: redis
-      REDIS_PORT: '6379'
-      REDIS_PASSWORD: ''
       UPLOAD_DIR: uploads
       EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-https://apisatistakip.hebilogluahsap.com}
       EXTERNAL_API_QUOTATION_UPDATE_ENDPOINT: ${EXTERNAL_API_QUOTATION_UPDATE_ENDPOINT:-/api/Quotations/:id/pdf-url}
@@ -20,23 +17,6 @@ services:
       - '3000'
     volumes:
       - pdf-uploads:/app/uploads
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  redis:
-    image: redis:7.4-alpine
-    restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes', '--appendfsync', 'everysec', '--maxmemory-policy', 'noeviction']
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
 
 volumes:
   pdf-uploads:
-  redis-data:

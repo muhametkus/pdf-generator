@@ -24,7 +24,7 @@ export interface CustomerPayload {
   createdAt?: string;
 }
 
-export interface PdfGenerationJobPayload {
+export interface QuotationPayload {
   id: string;
   quotationNumber: string;
   customerId: string;
@@ -50,9 +50,4 @@ export interface PdfGenerationJobPayload {
   createdAt: string;
   items: QuotationItemPayload[];
   // NOTE: statusHistory is explicitly excluded per business requirements
-}
-
-export interface ExternalApiUpdateJobPayload {
-  quotationId: string;
-  pdfUrl: string;
 }
