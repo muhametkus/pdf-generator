@@ -1,12 +1,16 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    NPM_CONFIG_FETCH_RETRIES=5 \
+    NPM_CONFIG_MAXSOCKETS=5
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Keep downloaded packages between builds, including failed network attempts.
+RUN --mount=type=cache,id=pdf-generator-npm,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
-RUN npm run build && npm prune --omit=dev
+RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production \

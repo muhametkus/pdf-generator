@@ -25,6 +25,19 @@ NestJS ve Chromium ile teklif PDF'i üretir, dosyayı saklar ve ana API'ye PDF U
 
 Kaynak: [Coolify Dockerfile dokümantasyonu](https://coolify.io/docs/applications/builds/dockerfile).
 
+### Build sırasında npm ETIMEDOUT
+
+`npm ci` aşamasında `registry.npmjs.org/...tgz` için `ETIMEDOUT` alınması, paket indirme isteğinin zaman aşımına uğradığını gösterir. Dockerfile, BuildKit npm önbelleğini yeniden kullanır, eşzamanlı bağlantıları 5 ile sınırlar ve başarısız ağ isteklerini 5 kez yeniden dener. Build sırasında ek audit/fund istekleri kapalıdır; bağımlılık sürümleri lockfile ile korunur. Ayarlar: [npm config](https://docs.npmjs.com/cli/v11/using-npm/config/).
+
+Değişiklikleri gönderip Coolify'da yeniden deploy edin. Hata sürerse Coolify sunucusunda hem host hem container içinden logdaki paket URL'sini kontrol edin:
+
+```bash
+curl -fIL --connect-timeout 15 --max-time 60 https://registry.npmjs.org/zod/-/zod-3.25.76.tgz
+docker run --rm node:24-bookworm-slim node -e "fetch('https://registry.npmjs.org/zod/-/zod-3.25.76.tgz', {signal: AbortSignal.timeout(60000)}).then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); console.log((await r.arrayBuffer()).byteLength + ' bytes downloaded'); }).catch(e => { console.error(e); process.exit(1); })"
+```
+
+Host başarılı, container başarısızsa Docker ağ/DNS ayarlarını; ikisi de başarısızsa sunucunun DNS, proxy ve dışarıya HTTPS (443) erişimini inceleyin. Kalıcı erişim sorununu yeniden deneme ayarları çözmez.
+
 ## İstek ve yanıt
 
 `POST /api/documents` mevcut `{ "success": true, "data": { ... } }` teklif gövdesini kabul eder. Alanlar Swagger'da açıklanır. PDF kaydedilip ana API güncellendikten sonra **HTTP 200** döner:
