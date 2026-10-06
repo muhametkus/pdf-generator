@@ -7,7 +7,9 @@ export default () => ({
     password: process.env.REDIS_PASSWORD || undefined,
   },
   externalApi: {
-    baseUrl: process.env.EXTERNAL_API_BASE_URL || 'http://localhost:5010',
+    baseUrl:
+      process.env.EXTERNAL_API_BASE_URL ||
+      'https://apisatistakip.hebilogluahsap.com',
     quotationUpdateEndpoint:
       process.env.EXTERNAL_API_QUOTATION_UPDATE_ENDPOINT ||
       '/api/Quotations/:id/pdf-url',

@@ -14,7 +14,10 @@ export class ExternalApiService {
     private readonly configService: ConfigService,
   ) {
     this.baseUrl = this.configService
-      .get<string>('externalApi.baseUrl', 'http://localhost:5010')
+      .get<string>(
+        'externalApi.baseUrl',
+        'https://apisatistakip.hebilogluahsap.com',
+      )
       .replace(/\/+$/, '');
     this.endpointPattern = this.configService.get<string>(
       'externalApi.quotationUpdateEndpoint',

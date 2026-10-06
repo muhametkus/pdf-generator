@@ -1,98 +1,69 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# PDF Generator
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + BullMQ ile teklif PDF'i üretir, dosyayı saklar ve ana API'ye PDF URL'sini PUT ile gönderir. Docker Compose uygulamayı, Chromium'u ve Redis'i birlikte çalıştırır.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Coolify kurulumu
 
-## Description
+1. Bu dosyaları Git deposuna gönderin ve Coolify'da depodan yeni bir Application oluşturun.
+2. **Build Pack:** `Docker Compose`. **Base Directory:** bu projenin depodaki dizini (repo kökündeyse `/`). **Docker Compose Location:** `/docker-compose.yml`.
+3. `app` servisinin **Domains** alanına `https://pdf.sizin-domaininiz.com:3000` yazın. DNS kaydını Coolify sunucusuna yönlendirin. `:3000` proxy'nin konteyner içindeki hedef portudur; dışarıdan HTTPS 443 kullanılır.
+4. **Environment Variables** bölümünde aşağıdaki değerleri ayarlayın:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+   ```dotenv
+   BASE_URL=https://pdf.sizin-domaininiz.com
+   EXTERNAL_API_BASE_URL=https://apisatistakip.hebilogluahsap.com
+   EXTERNAL_API_QUOTATION_UPDATE_ENDPOINT=/api/Quotations/:id/pdf-url
+   ```
 
-## Project setup
+   `BASE_URL` PDF servisinin herkese açık adresidir; ana API adresi değildir ve sonuna `:3000` eklenmez. Gerçek domaininizle değiştirin. Bu değer zorunludur. Diğer iki değişkenin varsayılanları yukarıdaki gibidir.
+5. **Deploy** çalıştırın. `https://pdf.sizin-domaininiz.com/health` adresi `{"status":"ok"}` döndürmeli. Swagger: `/api/docs`.
 
-```bash
-$ npm install
-```
+Kaynak: [Coolify Docker Compose dokümantasyonu](https://coolify.io/docs/applications/builds/docker-compose).
 
-## Compile and run the project
+## Docker yapısı ve depolama
 
-```bash
-# development
-$ npm run start
+- Çok aşamalı Dockerfile: Node.js 24, yalnızca production bağımlılıkları, Chromium ve Türkçe karakterleri destekleyen fontlar. Uygulama `node` kullanıcısıyla çalışır.
+- `app` servisi HTTP sunucusunu ve PDF/API kuyruk işleyicilerini aynı süreçte çalıştırır. `init: true` Chromium alt süreçlerini yönetir; kapanışta NestJS shutdown hook'ları kullanılır.
+- `pdf-uploads` volume'u `/app/uploads` altında PDF'leri saklar.
+- `redis-data` volume'u Redis AOF verisini saklar. `appendfsync everysec` kullanılır; ani sistem kaybında son yaklaşık bir saniyelik yazım kaybolabilir. Kuyruk için `noeviction` açıktır.
+- Redis yalnızca Docker ağı içindedir; host portu yayınlanmaz. Compose kendi Redis bağlantısını ayarlar.
+- `/health` uygulamanın HTTP canlılık kontrolüdür; Chromium veya dış API erişimini kontrol etmez. Redis'in ayrıca kendi healthcheck'i vardır.
 
-# watch mode
-$ npm run start:dev
+Volume'lar yeniden dağıtımlarda korunur. `docker compose down -v` bu verileri siler; normal durdurma için `docker compose down` kullanın. Mevcut yerel `uploads/` dosyaları image'a kopyalanmaz; gerekiyorsa bunları volume'a ayrıca taşıyın. PDF ve Redis volume'larını yedekleyin.
 
-# production mode
-$ npm run start:prod
-```
+## Yerelde Docker ile çalıştırma
 
-## Run tests
+`.env.example` dosyasını `.env` olarak kopyalayın. Mevcut `.env` varsa üzerine yazmadan API adresini kontrol edin; eski `http://localhost:5010` değeri Docker içinde çalışmaz.
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose logs -f app
 ```
 
-## Deployment
+Yerel ayar: `BASE_URL=http://localhost:3000`. Yerel override yalnızca uygulamanın portunu `127.0.0.1:3000` üzerinde yayınlar. Coolify'da yalnızca ana `docker-compose.yml` dosyasını kullanın.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## API akışı
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+`POST /api/documents` Swagger'da tanımlı `{ "success": true, "data": { ... } }` teklif gövdesini kabul eder ve HTTP 202 ile kuyruk işinin ID'sini döndürür. PDF üretildikten sonra dosya `/uploads/<teklif-id>.pdf` üzerinden sunulur ve şu istek yapılır:
+
+```http
+PUT https://apisatistakip.hebilogluahsap.com/api/Quotations/<teklif-id>/pdf-url
+Content-Type: application/json
+
+{"quotationPdfUrl":"https://pdf.sizin-domaininiz.com/uploads/<teklif-id>.pdf"}
+```
+
+Endpoint ve gövde [ana API Swagger şeması](https://apisatistakip.hebilogluahsap.com/swagger/index.html) ile uyumludur. Başarısız işler BullMQ yeniden deneme politikasına göre işlenir. Yerel denemelerde gerçek teklifleri güncellememek için `EXTERNAL_API_BASE_URL` değerini bir mock servise yönlendirin.
+
+## Docker olmadan geliştirme
+
+Node.js 24 ve erişilebilir Redis gerekir. `.env` içindeki Redis bağlantısını ayarlayın.
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm ci
+npm run start:dev
+npm test -- --runInBand
+npm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Docker dışında Puppeteer kendi tarayıcısını indirir. Docker image'ı ise sistem Chromium'unu `PUPPETEER_EXECUTABLE_PATH` üzerinden kullanır.
