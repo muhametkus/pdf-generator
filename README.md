@@ -21,6 +21,8 @@ NestJS ve Chromium ile teklif PDF'i üretir, dosyayı saklar ve ana API'ye PDF U
 5. Persistent Storage bölümünden `/app/uploads` hedefine kalıcı volume ekleyin. Dizin `node` kullanıcısı (UID 1000) tarafından yazılabilir olmalıdır. Mevcut PDF'leriniz varsa önceki depolamayı taşıyın veya aynı volume'u bağlayın.
 6. Deploy çalıştırın. Sağlık kontrolü `/health`, Swagger `/api/docs` adresindedir. Swagger production ortamında da açıktır.
 
+CORS, `https://apisatistakip.hebilogluahsap.com` ve HTTP/HTTPS üzerinden tüm portlarda `localhost`, `127.0.0.1`, `[::1]` origin'lerine izin verir. Credentials ve OPTIONS preflight desteklenir; istenen header'lar (Authorization ve Content-Type dahil) preflight yanıtına yansıtılır. Tarayıcıdaki Origin, isteği gönderen sayfanın adresidir.
+
 `BASE_URL` PDF servisinin dışarıdan erişilebilir adresidir. GitHub bağlantı zaman aşımı sunucu ağ erişimiyle ilgilidir; build pack değiştirmek bunu çözmez.
 
 Kaynak: [Coolify Dockerfile dokümantasyonu](https://coolify.io/docs/applications/builds/dockerfile).

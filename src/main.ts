@@ -9,6 +9,14 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableShutdownHooks();
+  app.enableCors({
+    origin: [
+      'https://apisatistakip.hebilogluahsap.com',
+      /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,
+    ],
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('port', 3000);
