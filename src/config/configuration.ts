@@ -1,6 +1,7 @@
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
-  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+  baseUrl:
+    process.env.BASE_URL || 'https://teklifpdfgenerator.hebilogluahsap.com',
   externalApi: {
     baseUrl:
       process.env.EXTERNAL_API_BASE_URL ||

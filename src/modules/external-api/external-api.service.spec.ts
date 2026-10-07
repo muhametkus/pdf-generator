@@ -38,7 +38,8 @@ describe('ExternalApiService', () => {
 
   it('should send PUT request with correct URL, headers and payload', async () => {
     const quotationId = '276179ea-eb7d-449f-b659-66c28f931547';
-    const pdfUrl = 'http://localhost:3000/uploads/276179ea-eb7d-449f-b659-66c28f931547.pdf';
+    const pdfUrl =
+      'https://teklifpdfgenerator.hebilogluahsap.com/uploads/276179ea-eb7d-449f-b659-66c28f931547.pdf';
 
     (httpService.put as jest.Mock).mockReturnValue(
       of({ status: 200, data: { success: true } }),

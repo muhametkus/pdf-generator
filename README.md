@@ -6,13 +6,13 @@ NestJS ve Chromium ile teklif PDF'i üretir, dosyayı saklar ve ana API'ye PDF U
 
 1. Değişiklikleri Git deposuna gönderin. Build Pack olarak **Dockerfile** seçin.
 2. Proje repo kökündeyse **Base Directory:** `/`, **Dockerfile Location:** `/Dockerfile`.
-3. **Ports Exposes:** `3000`. **Domains:** `https://pdf.sizin-domaininiz.com`. DNS kaydını sunucuya yönlendirin.
+3. **Ports Exposes:** `3000`. **Domains:** `https://teklifpdfgenerator.hebilogluahsap.com`. DNS kaydını sunucuya yönlendirin.
 4. Environment Variables:
 
    ```dotenv
    NODE_ENV=production
    PORT=3000
-   BASE_URL=https://pdf.sizin-domaininiz.com
+   BASE_URL=https://teklifpdfgenerator.hebilogluahsap.com
    EXTERNAL_API_BASE_URL=https://apisatistakip.hebilogluahsap.com
    EXTERNAL_API_QUOTATION_UPDATE_ENDPOINT=/api/Quotations/:id/pdf-url
    UPLOAD_DIR=uploads
@@ -23,7 +23,7 @@ NestJS ve Chromium ile teklif PDF'i üretir, dosyayı saklar ve ana API'ye PDF U
 
 CORS, `https://apisatistakip.hebilogluahsap.com` ve HTTP/HTTPS üzerinden tüm portlarda `localhost`, `127.0.0.1`, `[::1]` origin'lerine izin verir. Credentials ve OPTIONS preflight desteklenir; istenen header'lar (Authorization ve Content-Type dahil) preflight yanıtına yansıtılır. Tarayıcıdaki Origin, isteği gönderen sayfanın adresidir.
 
-`BASE_URL` PDF servisinin dışarıdan erişilebilir adresidir. GitHub bağlantı zaman aşımı sunucu ağ erişimiyle ilgilidir; build pack değiştirmek bunu çözmez.
+`BASE_URL` PDF servisinin dışarıdan erişilebilir adresidir. Varsayılan değer `https://teklifpdfgenerator.hebilogluahsap.com` olarak ayarlanmıştır. Coolify ortamında eski `BASE_URL=http://localhost:3000` değeri varsa production domainiyle değiştirip yeniden deploy edin; ortam değişkeni varsayılan değeri geçersiz kılar. GitHub bağlantı zaman aşımı sunucu ağ erişimiyle ilgilidir; build pack değiştirmek bunu çözmez.
 
 Kaynak: [Coolify Dockerfile dokümantasyonu](https://coolify.io/docs/applications/builds/dockerfile).
 
@@ -48,7 +48,7 @@ Host başarılı, container başarısızsa Docker ağ/DNS ayarlarını; ikisi de
 {
   "success": true,
   "status": "completed",
-  "pdfUrl": "https://pdf.sizin-domaininiz.com/uploads/teklif-id.pdf"
+  "pdfUrl": "https://teklifpdfgenerator.hebilogluahsap.com/uploads/teklif-id.pdf"
 }
 ```
 
@@ -58,7 +58,7 @@ Host başarılı, container başarısızsa Docker ağ/DNS ayarlarını; ikisi de
 PUT https://apisatistakip.hebilogluahsap.com/api/Quotations/<teklif-id>/pdf-url
 Content-Type: application/json
 
-{"quotationPdfUrl":"https://pdf.sizin-domaininiz.com/uploads/<teklif-id>.pdf"}
+{"quotationPdfUrl":"https://teklifpdfgenerator.hebilogluahsap.com/uploads/<teklif-id>.pdf"}
 ```
 
 PDF üretimi/depolama başarısızsa HTTP 500; dış API güncellenemezse HTTP 502 döner. Bu durumda oluşturulan PDF diskte kalır. Otomatik arka plan yeniden denemesi yoktur; istemci isteği tekrar gönderebilir. Aynı teklif ID'si aynı PDF dosyasının üzerine yazar. Önceki Redis kuyruğunda bekleyen işler bu sürümde işlenmez; geçişten önce tamamlanmalarını bekleyin veya ilgili istekleri yeniden gönderin.
@@ -80,7 +80,7 @@ Docker image'ı Node.js 24, production bağımlılıkları, Chromium ve fontlar�
 docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
-Coolify'da Compose kullanmaya devam ederseniz `app` domain alanına `https://pdf.sizin-domaininiz.com:3000` girin; `BASE_URL` içinde port bulunmamalıdır. `pdf-uploads` volume'u PDF'leri korur. `docker compose down -v` volume verilerini siler.
+Coolify'da Compose kullanmaya devam ederseniz `app` domain alanına `https://teklifpdfgenerator.hebilogluahsap.com:3000` girin; `BASE_URL` içinde port bulunmamalıdır. `pdf-uploads` volume'u PDF'leri korur. `docker compose down -v` volume verilerini siler.
 
 ## Geliştirme ve test
 

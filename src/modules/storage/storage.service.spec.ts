@@ -17,7 +17,8 @@ describe('StorageService', () => {
           useValue: {
             get: (key: string, defaultValue?: any) => {
               if (key === 'storage.uploadDir') return testUploadDir;
-              if (key === 'baseUrl') return 'http://localhost:3000';
+              if (key === 'baseUrl')
+                return 'https://teklifpdfgenerator.hebilogluahsap.com';
               return defaultValue;
             },
           },
@@ -41,8 +42,14 @@ describe('StorageService', () => {
 
     const url = await service.savePdf(filename, buffer);
 
-    expect(url).toBe('http://localhost:3000/test-uploads/test-doc-123.pdf');
-    const filePath = path.resolve(process.cwd(), testUploadDir, 'test-doc-123.pdf');
+    expect(url).toBe(
+      'https://teklifpdfgenerator.hebilogluahsap.com/test-uploads/test-doc-123.pdf',
+    );
+    const filePath = path.resolve(
+      process.cwd(),
+      testUploadDir,
+      'test-doc-123.pdf',
+    );
     expect(fs.existsSync(filePath)).toBe(true);
     expect(fs.readFileSync(filePath).toString()).toBe('test-pdf-content');
   });

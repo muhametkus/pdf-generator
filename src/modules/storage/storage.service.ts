@@ -10,8 +10,14 @@ export class StorageService {
   private readonly baseUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.uploadDir = this.configService.get<string>('storage.uploadDir', 'uploads');
-    this.baseUrl = this.configService.get<string>('baseUrl', 'http://localhost:3000');
+    this.uploadDir = this.configService.get<string>(
+      'storage.uploadDir',
+      'uploads',
+    );
+    this.baseUrl = this.configService.get<string>(
+      'baseUrl',
+      'https://teklifpdfgenerator.hebilogluahsap.com',
+    );
     this.ensureUploadDirExists();
   }
 
@@ -31,13 +37,19 @@ export class StorageService {
    * @returns Publicly accessible URL for the saved PDF
    */
   async savePdf(fileName: string, buffer: Buffer): Promise<string> {
-    const safeFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
-    const targetPath = path.resolve(process.cwd(), this.uploadDir, safeFileName);
+    const safeFileName = fileName.endsWith('.pdf')
+      ? fileName
+      : `${fileName}.pdf`;
+    const targetPath = path.resolve(
+      process.cwd(),
+      this.uploadDir,
+      safeFileName,
+    );
 
     await fs.promises.writeFile(targetPath, buffer);
     this.logger.log(`Saved PDF to disk: ${targetPath}`);
 
-    // Format public URL: e.g. http://localhost:3000/uploads/276179ea-eb7d-449f-b659-66c28f931547.pdf
+    // Format public URL: e.g. https://teklifpdfgenerator.hebilogluahsap.com/uploads/276179ea-eb7d-449f-b659-66c28f931547.pdf
     const sanitizedBaseUrl = this.baseUrl.replace(/\/+$/, '');
     const sanitizedUploadDir = this.uploadDir.replace(/^\/+|\/+$/g, '');
     const publicUrl = `${sanitizedBaseUrl}/${sanitizedUploadDir}/${safeFileName}`;
